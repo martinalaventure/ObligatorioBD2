@@ -2,17 +2,26 @@ version: "3.8"
 
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/app
-    restart: always
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
-    restart: always
+      - ./frontend:/usr/src/app:cached
+      - /usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
