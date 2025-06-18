@@ -1,4 +1,4 @@
-/backend/.env
+#/backend/.env
 /frontend/node_modules
 
 /frontend/.pnp
