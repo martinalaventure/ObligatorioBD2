@@ -2,14 +2,15 @@
 FROM python:3.11-slim
 
 # Set work dir
-WORKDIR /app
+WORKDIR /usr/src/app
 
 # Copiar los archivos
-COPY . .
+COPY requirements.txt ./
 
 # Instalar dependencias
-RUN pip install --no-cache-dir flask flask-cors
+RUN pip install --no-cache-dir -r requirements.txt
 
+COPY . .
 # Exponer el puerto
 EXPOSE 5000
 
