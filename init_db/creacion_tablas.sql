@@ -100,6 +100,8 @@ CI VARCHAR(20) PRIMARY KEY,
 Organismo_De_Trabajo VARCHAR(150),
 Rol_En_Mesa VARCHAR(50),
 ID_Mesa INT,
+Usuario VARCHAR(50) UNIQUE NOT NULL,
+Password_Hash VARCHAR(255) NOT NULL,
 FOREIGN KEY (CI) REFERENCES Ciudadano(CI),
 FOREIGN KEY (ID_Mesa) REFERENCES Mesa(ID)
 );
@@ -120,6 +122,14 @@ PRIMARY KEY (ID_Partido, CI_Autoridad),
 FOREIGN KEY (ID_Partido) REFERENCES Partido_Politico(ID),
 FOREIGN KEY (CI_Autoridad) REFERENCES Ciudadano(CI)
 );
+
+CREATE TABLE Admin (
+  CI VARCHAR(20) PRIMARY KEY,
+  Usuario VARCHAR(50) UNIQUE NOT NULL,
+  Password_Hash VARCHAR(255) NOT NULL,
+  FOREIGN KEY (CI) REFERENCES Ciudadano(CI)
+);
+
 
 CREATE TABLE Voto (
 ID_Voto INT PRIMARY KEY,
@@ -148,3 +158,4 @@ PRIMARY KEY (ID_EventoElectoral, ID_Partido),
 FOREIGN KEY (ID_EventoElectoral) REFERENCES Evento_Electoral(ID),
 FOREIGN KEY (ID_Partido) REFERENCES Partido_Politico(ID)
 );
+
