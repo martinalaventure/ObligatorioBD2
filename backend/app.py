@@ -5,6 +5,7 @@ from flask_cors import CORS
 import mysql.connector
 import os
 from dotenv import load_dotenv
+from functools import wraps
 
 load_dotenv()
 
@@ -25,23 +26,44 @@ def get_db_connection():
         print(f"Error connecting to database: {e}")
         return None
 
-@app.route('/')
-def home():
-    return "Hola desde Flask con MySQL conectado!"
+def token_required(f):
+    '''Esta función provee seguridad para la página, chequea el token del votante para autorizarlo a que pueda votar'''
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token_header = request.headers.get('Authorization')
+        if not token_header or not token_header.startswith('Bearer '):
+            return jsonify({'error': 'Token no proporcionado'}), 401
+        
+        token = token_header.split(' ')[1]
 
-@app.route('/dbcheck')
-def dbcheck():
-    try:
-        conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            port=os.getenv("DB_PORT", 3306)
-        )
-        return "Conexión a MySQL exitosa!"
-    except Exception as e:
-        return f"Error de conexión: {str(e)}"
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Error de conexión'}), 500
+            cursor = conn.cursor(dictionary=True)
+            
+            cursor.execute("""
+                SELECT * FROM Votante WHERE Token_Inicial = %s AND Habilitado = TRUE AND Voto = FALSE
+            """, (token,))
+            votante = cursor.fetchone()
+
+            if not votante:
+                return jsonify({'error': 'Token inválido o expirado'}), 403
+            
+            
+            return f( *args, **kwargs)
+        
+        except Error as e:
+            print(f"Token check DB error: {e}")
+            return jsonify({'error': 'Error del servidor'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+    return decorated 
     
 @app.route('/login/votante', methods=['POST'])
 def login_votante():
@@ -93,10 +115,6 @@ def login_votante():
         return jsonify({
             'message': 'Autenticación exitosa',
             'token': token,
-            'user_data': {
-                'ci': votante['CI'],
-                'nombre': f"{votante['Nombre']} {votante['Apellido']}"
-            }
         }), 200
 
     except Error as e:
@@ -107,6 +125,100 @@ def login_votante():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+
+@app.route('/votante/listas', methods=['GET'])
+@token_required
+def obtener_listas_para_votar():
+    '''Esta ruta es donde el votante verá desplegada la vista con las diferentes listas para votar.'''
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+        cursor = conn.cursor(dictionary=True)
+        #Obtener todas las listas
+        cursor.execute("""
+            SELECT * FROM Lista
+        """)
+        listas = cursor.fetchall()
+        
+        return jsonify({'listas': listas}), 200
+
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+@app.route('/votante/listas/<id>', methods = ['GET'])
+@token_required
+def obtener_info_de_una_lista(id):
+    '''Esta ruta es para obtener la vista de una lista seleccionada'''
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT Lista.Numero, Departamento.Nombre AS Nombre_Departamento, Partido_Politico.Nombre AS Nombre_Partido, Partido_Politico.Dir_Sede, Evento_Electoral.Tipo
+            FROM Lista 
+                       JOIN Departamento ON Lista.ID_Departamento = Departamento.ID
+                       JOIN Partido_Politico ON Lista.ID_Partido = Partido_Politico.ID
+                       JOIN Evento_Electoral ON Lista.ID_Evento_Electoral = Evento_Electoral.ID
+            WHERE Lista.Numero = %s
+        """,(id,))
+
+        lista = cursor.fetchone()
+
+        if not lista:
+            return jsonify({'error': 'Lista no encontrada'}), 404
+
+        return jsonify({'lista': lista}), 200
+
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+# @app.route('/votar', methods=['POST'])
+# @token_required
+# def registrar_voto():
+#     '''Esta ruta es para poder registrar un voto a una lista elegida por el votante'''
+#     data = request.get_json()
+#     id_lista = data.get('numero_Lista')
+#     en_blanco = data.get('en_blanco', False)
+#     anulado = data.get('anulado', False)
+#     id_circuito = data.get('id_circuito')
+
+#     if not en_blanco and not anulado and not id_lista and not id_circuito:
+#         return jsonify({'error': 'Debe votar por una lista o votar en blanco o anulado y votar en un circuito habilitado'}), 400
+
+#     auth_header = request.headers.get('Authorization')
+#     token = auth_header.split(' ')[1]
+
+#     conn = None
+#     cursor = None
+#     try:
+#         conn = get_db_connection()
+#         if not conn:
+#             return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+#         cursor = conn.cursor(dictionary=True)
+#         cursor.execute('''
+
+#         ''')
+
+
 
 
 if __name__ == "__main__":

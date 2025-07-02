@@ -16,9 +16,9 @@ export default function Card({ id, title, onDelete }) {
   };
 
   return (
-    <div className="game-card">
+    <div className="card">
       <div className="content-contenedor">
-        <div className="game-title">
+        <div className="card-title">
           <h2>{title}</h2>
         </div>
         <button className="detail-btn" onClick={handleDetailsClick}>
