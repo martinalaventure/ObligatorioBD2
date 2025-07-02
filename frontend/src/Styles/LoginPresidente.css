@@ -1,0 +1,78 @@
+#presidente-login-container {
+  padding: 2rem;
+  max-width: 400px;
+  margin: 4rem auto;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.presidente-login-title {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.presidente-login-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.presidente-login-form label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.presidente-login-form input {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+.presidente-login-button {
+  width: 100%;
+  padding: 0.7rem;
+  background-color: #0066cc;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.presidente-login-button:hover {
+  background-color: #004d99;
+}
+
+.presidente-login-message {
+  margin-top: 1rem;
+  color: red;
+  text-align: center;
+}
+
+.extra-login-buttons-presidente {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.alt-login-button-presidente {
+  padding: 0.6rem;
+  background-color: #cccccc;
+  color: #222;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.alt-login-button-presidente:hover {
+  background-color: #aaaaaa;
+}
