@@ -1,8 +1,9 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginVotante from './Views/LoginVotante';
 import LoginAdmin from './Views/LoginAdmin';
 import LoginPresidente from './Views/LoginPresidente';
+import PresidenteHome from './Views/Presidente';
 
 function App() {
   return (
@@ -11,7 +12,8 @@ function App() {
         <Route path="/login/votante" element={<LoginVotante />} />
         <Route path="/login/admin" element={<LoginAdmin />} />
         <Route path="/login/presidente" element={<LoginPresidente />} />
-        <Route path="/" element={<h2>Bienvenido a la app electoral</h2>} />
+        <Route path="/presidente" element={<PresidenteHome />} />
+        <Route path="/" element={<Navigate to="/login/votante" />} />
       </Routes>
     </BrowserRouter>
   );

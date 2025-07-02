@@ -24,6 +24,7 @@ const LoginPresidente = () => {
 
       if (response.ok) {
         localStorage.setItem('presidenteToken', data.token);
+        localStorage.setItem('presidente_ci', data.ci);
         navigate('/presidente');
       } else {
         setMensaje(data.error || 'Usuario o contraseña incorrectos');
