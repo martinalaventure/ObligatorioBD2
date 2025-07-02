@@ -121,6 +121,14 @@ FOREIGN KEY (ID_Partido) REFERENCES Partido_Politico(ID),
 FOREIGN KEY (CI_Autoridad) REFERENCES Ciudadano(CI)
 );
 
+CREATE TABLE Admin (
+  CI VARCHAR(20) PRIMARY KEY,
+  Usuario VARCHAR(50) UNIQUE NOT NULL,
+  Password_Hash VARCHAR(255) NOT NULL,
+  FOREIGN KEY (CI) REFERENCES Ciudadano(CI)
+);
+
+
 CREATE TABLE Voto (
 ID_Voto INT PRIMARY KEY,
 En_Blanco BOOLEAN DEFAULT FALSE,
@@ -148,3 +156,4 @@ PRIMARY KEY (ID_EventoElectoral, ID_Partido),
 FOREIGN KEY (ID_EventoElectoral) REFERENCES Evento_Electoral(ID),
 FOREIGN KEY (ID_Partido) REFERENCES Partido_Politico(ID)
 );
+

@@ -5,6 +5,7 @@ from flask_cors import CORS
 import mysql.connector
 import os
 from dotenv import load_dotenv
+from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
 
@@ -45,6 +46,7 @@ def dbcheck():
     
 @app.route('/login/votante', methods=['POST'])
 def login_votante():
+    print(generate_password_hash("admin123", method='pbkdf2:sha256'))
     data = request.get_json()
 
     # Validación básica
@@ -107,6 +109,57 @@ def login_votante():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+@app.route('/login/admin', methods=['POST'])
+def login_admin():
+    data = request.get_json()
+
+    if not data or not data.get('usuario') or not data.get('contrasena'):
+        return jsonify({'error': 'Usuario y contraseña son requeridos'}), 400
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+
+        cursor = conn.cursor(dictionary=True)
+
+        # Buscar admin por usuario
+        cursor.execute("""
+            SELECT CI, Usuario, Password_Hash
+            FROM Admin
+            WHERE Usuario = %s
+        """, (data['usuario'],))
+
+        admin = cursor.fetchone()
+
+        # Verificar credenciales
+        if not admin or not check_password_hash(admin['Password_Hash'], data['contrasena']):
+            return jsonify({'error': 'Usuario o contraseña incorrectos'}), 401
+
+        # Generar token de sesión
+        token = secrets.token_urlsafe(32)
+
+        # (opcional) Podrías guardar el token en tabla Admin o en una tabla de sesiones
+
+        return jsonify({
+            'message': 'Autenticación exitosa',
+            'token': token,
+            'user_data': {
+                'ci': admin['CI'],            }
+        }), 200
+
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
 
 
 if __name__ == "__main__":

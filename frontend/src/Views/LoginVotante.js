@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import '../Styles/LoginVotante.css'; 
 
 const LoginVotante = () => {
   const [serie, setSerie] = useState('');
@@ -6,6 +8,7 @@ const LoginVotante = () => {
   const [circuito, setCircuito] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [userData, setUserData] = useState(null);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,9 +29,9 @@ const LoginVotante = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setMensaje(data.message);
-        setUserData(data.user_data);
         localStorage.setItem('token', data.token);
+        setUserData(data.user_data);
+        navigate('/listas');
       } else {
         setMensaje(data.error || 'Error desconocido');
         setUserData(null);
@@ -41,50 +44,56 @@ const LoginVotante = () => {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '400px', margin: 'auto' }}>
-      <h2>Login Votante</h2>
-      <form onSubmit={handleLogin}>
-        <div>
-          <label>Serie:</label>
-          <input
-            type="text"
-            value={serie}
-            onChange={(e) => setSerie(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>Credencial Cívica:</label>
-          <input
-            type="text"
-            value={cc}
-            onChange={(e) => setCc(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label>ID del Circuito:</label>
-          <input
-            type="text"
-            value={circuito}
-            onChange={(e) => setCircuito(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit">Iniciar sesión</button>
-      </form>
+  <div id="login-container">
+    <h2 className="login-title">Login Votante</h2>
+    <form onSubmit={handleLogin} className="login-form">
+      <div className="form-group">
+        <label htmlFor="serie">Serie:</label>
+        <input
+          id="serie"
+          type="text"
+          value={serie}
+          onChange={(e) => setSerie(e.target.value)}
+          required
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="cc">Credencial Cívica:</label>
+        <input
+          id="cc"
+          type="text"
+          value={cc}
+          onChange={(e) => setCc(e.target.value)}
+          required
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="circuito">ID del Circuito:</label>
+        <input
+          id="circuito"
+          type="text"
+          value={circuito}
+          onChange={(e) => setCircuito(e.target.value)}
+          required
+        />
+      </div>
+      <button type="submit" className="login-button">Iniciar sesión</button>
+    </form>
 
-      {mensaje && <p>{mensaje}</p>}
+    <div className="extra-login-buttons">
+        <button className="alt-login-button" onClick={() => navigate('/login/admin')}>
+          Iniciar sesión como admin
+        </button>
+        <button className="alt-login-button" onClick={() => navigate('/login/presidente')}>
+          Iniciar sesión como presidente de mesa
+        </button>
+      </div>
 
-      {userData && (
-        <div>
-          <h4>Datos del votante:</h4>
-          <p>CI: {userData.ci}</p>
-          <p>Nombre: {userData.nombre}</p>
-        </div>
-      )}
-    </div>
+    {mensaje && <p className="login-message">{mensaje}</p>}
+
+  </div>
   );
-};
+}
+
 
 export default LoginVotante;
