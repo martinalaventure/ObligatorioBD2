@@ -11,9 +11,9 @@ Tipo VARCHAR(50) NOT NULL,
 Fecha DATE NOT NULL
 );
 
-CREATE TABLE Partido_Politico (
+CREATE TABLE Departamento (
 ID INT PRIMARY KEY,
-Dir_Sede VARCHAR(200)
+Nombre VARCHAR(200)
 );
 
 CREATE TABLE Comisaria (
@@ -47,6 +47,7 @@ Serie VARCHAR(20),
 Desde INT,
 Hasta INT,
 ID_Establecimiento INT,
+Abierto BOOLEAN DEFAULT FALSE,
 FOREIGN KEY (ID_Establecimiento) REFERENCES Establecimiento(ID)
 );
 
@@ -72,9 +73,7 @@ CI VARCHAR(20) PRIMARY KEY,
 CC VARCHAR(20),
 Nombre VARCHAR(100) NOT NULL,
 Apellido VARCHAR(100) NOT NULL,
-F_Nacimiento DATE,
-Numero_Lista INT,
-FOREIGN KEY (Numero_Lista) REFERENCES Lista(Numero)
+F_Nacimiento DATE
 );
 
 CREATE TABLE Votante (
@@ -122,7 +121,7 @@ FOREIGN KEY (CI_Autoridad) REFERENCES Ciudadano(CI)
 );
 
 CREATE TABLE Voto (
-ID_Voto INT PRIMARY KEY,
+ID_Voto INT PRIMARY KEY AUTO_INCREMENT,
 En_Blanco BOOLEAN DEFAULT FALSE,
 Anulado BOOLEAN DEFAULT FALSE,
 Observado BOOLEAN DEFAULT FALSE,
