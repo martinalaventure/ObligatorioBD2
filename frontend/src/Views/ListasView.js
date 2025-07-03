@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../Components/Card";
+import "../Styles/ListasView.css";
 
 const ListasView = () => {
   const [listas, setListas] = useState([]);
@@ -8,7 +9,7 @@ const ListasView = () => {
 
   const handleListasView = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/votante/listas", {
+      const response = await fetch("http://localhost:5000/listas", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -16,7 +17,7 @@ const ListasView = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setListas(data || []);
+        setListas(data.listas);
       } else {
         if (response.status === 401) {
           localStorage.removeItem("token");
@@ -34,11 +35,21 @@ const ListasView = () => {
 
   return (
     <div className="listasView">
-      {listas && listas.length > 0 ? (
-        listas.map((lista) => <Card key={lista.numero} />)
-      ) : (
-        <p>No hay listas disponibles.</p>
-      )}
+      <div className="cards-container">
+        {listas && listas.length > 0 ? (
+          listas.map((lista) => (
+            <Card
+              key={lista.Numero}
+              id={lista.Numero}
+              title={"Lista: " + lista.Numero}
+            >
+              <p>{lista.Nombre_Partido}</p>
+            </Card>
+          ))
+        ) : (
+          <p>No hay listas disponibles.</p>
+        )}
+      </div>
     </div>
   );
 };

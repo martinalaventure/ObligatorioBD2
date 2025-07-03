@@ -300,7 +300,7 @@ def datos_presidente():
 
 
 
-@app.route('/votante/listas', methods=['GET'])
+@app.route('/listas', methods=['GET'])
 @token_required
 def obtener_listas_para_votar():
     '''Esta ruta es donde el votante verá desplegada la vista con las diferentes listas para votar.'''
@@ -313,7 +313,7 @@ def obtener_listas_para_votar():
         cursor = conn.cursor(dictionary=True)
         #Obtener todas las listas
         cursor.execute("""
-            SELECT * FROM Lista
+            SELECT Lista.Numero, Partido_Politico.Nombre AS Nombre_Partido FROM Lista JOIN Partido_Politico ON Lista.ID_Partido = Partido_Politico.ID
         """)
         listas = cursor.fetchall()
         
@@ -328,7 +328,7 @@ def obtener_listas_para_votar():
         if conn and conn.is_connected():
             conn.close()
 
-@app.route('/votante/listas/<id>', methods = ['GET'])
+@app.route('/listas/<id>', methods = ['GET'])
 @token_required
 def obtener_info_de_una_lista(id):
     '''Esta ruta es para obtener la vista de una lista seleccionada'''

@@ -8,11 +8,11 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import "../Styles/Card.css";
 
-export default function Card({ id, title, onDelete }) {
+export default function Card({ id, title, children }) {
   const navigate = useNavigate();
 
   const handleDetailsClick = () => {
-    navigate(`/details/${id}`);//acá sería lista/id?. este details llevaría a otra pantalla que se llama details :P
+    navigate(`/listas/${id}`);
   };
 
   return (
@@ -21,10 +21,12 @@ export default function Card({ id, title, onDelete }) {
         <div className="card-title">
           <h2>{title}</h2>
         </div>
+        <div className="little-description">
+          {children}
+        </div>
         <button className="detail-btn" onClick={handleDetailsClick}>
           Detalles
         </button>
-        {/* <DeleteGame id={id} onDelete={onDelete} /> Esto me parece que no iría, porque en verdad el votente no querría borrar una lista. el unico que puede borrar una lista sería a corte electoral*/}
       </div>
     </div>
   );

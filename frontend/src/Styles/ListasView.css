@@ -1,0 +1,40 @@
+.listasView {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.titulo{
+    position: relative;
+    font-size: 2em;
+}
+
+.little-description{
+    font-size: 1em;
+}
+
+
+.cards-container{
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    text-align: center;
+    font-size: 1.5em;
+    margin-bottom: 15px;
+}
+
+
+
+
+@media (max-width: 768px) {
+    .addGame-btn {
+        width: 80px;
+        height: 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .addGame-btn {
+        width: 70px;
+        height: 25px;
+    }
+}

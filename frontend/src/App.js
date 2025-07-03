@@ -4,6 +4,8 @@ import LoginVotante from './Views/LoginVotante';
 import LoginAdmin from './Views/LoginAdmin';
 import LoginPresidente from './Views/LoginPresidente';
 import PresidenteHome from './Views/Presidente';
+import ListasView from './Views/ListasView';
+import VotingView from './Views/VotingView';
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
         <Route path="/login/admin" element={<LoginAdmin />} />
         <Route path="/login/presidente" element={<LoginPresidente />} />
         <Route path="/presidente" element={<PresidenteHome />} />
+        <Route path="/listas" element={<ListasView />} />
+        <Route path="/listas/:id" element={<VotingView />} />
         <Route path="/" element={<Navigate to="/login/votante" />} />
       </Routes>
     </BrowserRouter>
