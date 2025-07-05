@@ -1,15 +1,25 @@
 from conexion import obtener_conexion
 import random
+import string
 
 conexion = obtener_conexion()
 cursor = conexion.cursor()
 
-for i in range(2, 401):
+letras_usadas = set()
+
+def generar_serie(letras_existentes):
+    while True:
+        letras = ''.join(random.choices(string.ascii_uppercase, k=3))
+        if letras not in letras_existentes:
+            letras_existentes.add(letras)
+            return letras
+
+for i in range(1, 301):
     accesible = random.choice([True, False])
-    serie = f"Serie-{random.randint(1000, 9999)}"
-    desde = random.randint(40000000, 40000100)
-    hasta = desde + random.randint(10, 50)
-    id_est = random.randint(1, 100)  # establecimientos que ya insertamos
+    serie = generar_serie(letras_usadas)
+    desde = random.randint(1000, 5000)
+    hasta = desde + random.randint(50, 200)
+    id_est = random.randint(1, 100)
 
     cursor.execute("""
         INSERT INTO Circuito (ID, Accesible, Serie, Desde, Hasta, ID_Establecimiento)
@@ -19,4 +29,4 @@ for i in range(2, 401):
 conexion.commit()
 cursor.close()
 conexion.close()
-print("Circuitos insertados correctamente")
+print("Circuitos creados correctamente")

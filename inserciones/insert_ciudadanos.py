@@ -1,4 +1,3 @@
-# insert_ciudadanos.py
 from conexion import obtener_conexion
 from datetime import datetime, timedelta
 import random
@@ -6,12 +5,21 @@ import random
 conexion = obtener_conexion()
 cursor = conexion.cursor()
 
+#obtenemos todos los circuitos con su serie y desde-hasta
+cursor.execute("SELECT Serie, Desde, Hasta FROM Circuito")
+circuitos = cursor.fetchall()
+
 nombres = ["Ana", "Luis", "Carla", "Diego", "Lucía", "Pedro", "Mario", "Agustina", "Camila", "Pablo"]
 apellidos = ["Gómez", "Pérez", "Fernández", "Rodríguez", "Silva", "López", "Montero", "Gonzalez", "Arias"]
 
 for i in range(1, 501):
     ci = f"{50000000 + i}"
-    cc = f"CC{i:04d}"
+    
+    #se elije un circuito aleatorio y  generamos la cc del ciudadano
+    serie, desde, hasta = random.choice(circuitos)
+    numero_cc = random.randint(desde, hasta)
+    cc = f"{serie}{numero_cc:04d}"
+
     nombre = random.choice(nombres)
     apellido = random.choice(apellidos)
     nacimiento = datetime(1960, 1, 1) + timedelta(days=random.randint(7000, 20000))
@@ -25,5 +33,6 @@ for i in range(1, 501):
 conexion.commit()
 cursor.close()
 conexion.close()
+print("Ciudadanos insertados correctamente con CC coherente")
 
-print("Ciudadanos insertados correctamente")
+
