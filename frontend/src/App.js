@@ -6,10 +6,12 @@ import LoginPresidente from './Views/LoginPresidente';
 import PresidenteHome from './Views/Presidente';
 import ListasView from './Views/ListasView';
 import VotingView from './Views/VotingView';
+import Header from './Components/Header';
 
 function App() {
   return (
     <BrowserRouter>
+      <Header/>
       <Routes>
         <Route path="/login/votante" element={<LoginVotante />} />
         <Route path="/login/admin" element={<LoginAdmin />} />

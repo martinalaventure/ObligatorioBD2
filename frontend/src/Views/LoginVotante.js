@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import '../Styles/LoginVotante.css'; 
 
 const LoginVotante = () => {
-  const [serie, setSerie] = useState('');
   const [cc, setCc] = useState('');
   const [circuito, setCircuito] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -20,7 +19,6 @@ const LoginVotante = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          serie,
           cc,
           circuito_id: circuito
         })
@@ -28,9 +26,12 @@ const LoginVotante = () => {
 
       const data = await response.json();
 
+
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        setUserData(data.user_data);
+        localStorage.setItem('circuito', data.circuito);
+        localStorage.setItem('serie', data.serie);
+        setUserData(data.serie);
         navigate('/listas');
       } else {
         setMensaje(data.error || 'Error desconocido');
@@ -47,16 +48,6 @@ const LoginVotante = () => {
   <div id="login-container">
     <h2 className="login-title">Login Votante</h2>
     <form onSubmit={handleLogin} className="login-form">
-      <div className="form-group">
-        <label htmlFor="serie">Serie:</label>
-        <input
-          id="serie"
-          type="text"
-          value={serie}
-          onChange={(e) => setSerie(e.target.value)}
-          required
-        />
-      </div>
       <div className="form-group">
         <label htmlFor="cc">Credencial Cívica:</label>
         <input

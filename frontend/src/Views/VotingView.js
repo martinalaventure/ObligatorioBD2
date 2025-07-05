@@ -1,15 +1,147 @@
-import React from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import "../Styles/VotingView.css";
 
 const VotingView = () => {
   const { id } = useParams();
+  const [lista, setLista] = useState({});
+  const navigate = useNavigate();
+  const [mensaje, setMensaje] = useState("");
+  const [votoEnBlanco, setVotoEnBlanco] = useState(false);
+  const [votoAnulado, setVotoAnulado] = useState(false);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    if (id === "1") {
+      setVotoEnBlanco(true);
+      setVotoAnulado(false);
+    } else if (id === "2") {
+      setVotoEnBlanco(false);
+      setVotoAnulado(true);
+    } else {
+      setVotoEnBlanco(false);
+      setVotoAnulado(false);
+    }
+  }, [id]);
+
+
+  const handleVotacionSpace = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/listas/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setLista(data.lista);
+      } else {
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/login/votante");
+        }
+      }
+    } catch (error) {
+      console.error("Error al cargar la lista: ", error);
+    }
+  };
+
+  useEffect(() => {
+    handleVotacionSpace();
+  }, []);
+
+  const handleVoting = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/votar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          numero_Lista: lista.Numero,
+          en_blanco: votoEnBlanco,
+          anulado: votoAnulado,
+          id_circuito: parseInt(localStorage.getItem("circuito")),
+          serie: localStorage.getItem('serie'),
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMensaje(
+          `Voto registrado correctamente${
+            data.observado ? " (observado)" : ""
+          }.`
+        );
+        localStorage.removeItem("token");
+        localStorage.removeItem("serie");
+        localStorage.removeItem("circuito");
+        setTimeout(() => {
+          navigate("/gracias");
+        }, 3000);
+      } else {
+        const errorData = await response.json();
+        setMensaje(errorData.error || "Error al votar.");
+      }
+    } catch (error) {
+      console.error("Error al conectar con el backend:", error);
+      setMensaje("No se pudo conectar con el servidor.");
+    }
+  };
+
+
+  useEffect(() => {
+    handleVotacionSpace();
+  }, []);
+
+  const handleCancelar = () => {
+    navigate(-1);
+  };
 
   return (
-    <div>
-      <h1>Hola</h1>
-      <p>Estás en la lista {id}</p>
+    <div className="votingView">
+      <button className="cancelarBtn" onClick={handleCancelar}>
+        Cancelar
+      </button>
+
+      {id === "1" ? (
+        <div className="votingInfo">
+          <h2>Voto en Blanco</h2>
+          <p>Usted ha decidido emitir su voto en blanco.</p>
+        </div>
+      ) : id === "2" ? (
+        <div className="votingInfo">
+          <h2>Voto Anulado</h2>
+          <p>Usted ha decidido anular su voto.</p>
+        </div>
+      ) : (
+        <div className="votingInfo">
+          <div className="listaNumber">
+            Usted seleccionó la lista: {lista.Numero}
+          </div>
+          <div className="listaInfo">
+            <p>
+              <strong>Partido:</strong> {lista.Nombre_Partido}
+            </p>
+            <p>
+              <strong>Dirección de la sede:</strong> {lista.Dir_Sede}
+            </p>
+            <p>
+              <strong>Departamento:</strong> {lista.Nombre_Departamento}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <button className="votarBtn" onClick={handleVoting}>
+        Confirmar Voto
+      </button>
+
+      {mensaje && <div className="mensaje">{mensaje}</div>}
     </div>
   );
+  
 };
 
 export default VotingView;
