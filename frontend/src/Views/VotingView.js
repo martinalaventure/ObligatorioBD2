@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "../Styles/VotingView.css";
+import Modal from "../Components/Modal";
 
 const VotingView = () => {
   const { id } = useParams();
@@ -9,7 +10,8 @@ const VotingView = () => {
   const [mensaje, setMensaje] = useState("");
   const [votoEnBlanco, setVotoEnBlanco] = useState(false);
   const [votoAnulado, setVotoAnulado] = useState(false);
-  const [cargando, setCargando] = useState(true);
+  const [mostrarModal, setMostrarModal] = useState(false);
+
 
   useEffect(() => {
     if (id === "1") {
@@ -23,7 +25,6 @@ const VotingView = () => {
       setVotoAnulado(false);
     }
   }, [id]);
-
 
   const handleVotacionSpace = async () => {
     try {
@@ -64,7 +65,7 @@ const VotingView = () => {
           en_blanco: votoEnBlanco,
           anulado: votoAnulado,
           id_circuito: parseInt(localStorage.getItem("circuito")),
-          serie: localStorage.getItem('serie'),
+          serie: localStorage.getItem("serie"),
         }),
       });
       if (response.ok) {
@@ -77,9 +78,7 @@ const VotingView = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("serie");
         localStorage.removeItem("circuito");
-        setTimeout(() => {
-          navigate("/gracias");
-        }, 3000);
+        navigate("/final");
       } else {
         const errorData = await response.json();
         setMensaje(errorData.error || "Error al votar.");
@@ -89,7 +88,6 @@ const VotingView = () => {
       setMensaje("No se pudo conectar con el servidor.");
     }
   };
-
 
   useEffect(() => {
     handleVotacionSpace();
@@ -134,14 +132,26 @@ const VotingView = () => {
         </div>
       )}
 
-      <button className="votarBtn" onClick={handleVoting}>
+      <button className="votarBtn" onClick={() => setMostrarModal(true)}>
         Confirmar Voto
       </button>
+      {mostrarModal && (
+        <Modal onClose={() => setMostrarModal(false)}>
+          <h2>¿Estás seguro que deseas confirmar tu voto?</h2>
+          <div className="modal-buttons">
+            <button className="confirm" onClick={handleVoting}>
+              Sí, confirmar
+            </button>
+            <button className="cancel" onClick={() => setMostrarModal(false)}>
+              Cancelar
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {mensaje && <div className="mensaje">{mensaje}</div>}
     </div>
   );
-  
 };
 
 export default VotingView;

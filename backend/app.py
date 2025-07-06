@@ -28,6 +28,7 @@ def get_db_connection():
         return None
 
 def token_required(f):
+    '''Esta función provee seguridad para la página, chequea el token del votante para autorizarlo a que pueda votar'''
     @wraps(f)
     def decorated(*args, **kwargs):
         token_header = request.headers.get('Authorization')
@@ -52,8 +53,8 @@ def token_required(f):
             if not votante:
                 return jsonify({'error': 'Token inválido o expirado'}), 403
             
-            # Pasar votante como argumento
-            return f(votante, *args, **kwargs)
+            
+            return f( *args, **kwargs)
         
         except Error as e:
             print(f"Token check DB error: {e}")
@@ -63,7 +64,7 @@ def token_required(f):
                 cursor.close()
             if conn and conn.is_connected():
                 conn.close()
-    return decorated
+    return decorated 
     
 @app.route('/login/votante', methods=['POST'])
 def login_votante():
@@ -312,7 +313,7 @@ def datos_presidente():
 
 @app.route('/listas', methods=['GET'])
 @token_required
-def obtener_listas_para_votar(_):
+def obtener_listas_para_votar():
     '''Esta ruta es donde el votante verá desplegada la vista con las diferentes listas para votar.'''
     conn = None
     cursor = None
@@ -343,7 +344,7 @@ def obtener_listas_para_votar(_):
 
 @app.route('/listas/<id>', methods = ['GET'])
 @token_required
-def obtener_info_de_una_lista(_, id):
+def obtener_info_de_una_lista(id):
     '''Esta ruta es para obtener la vista de una lista seleccionada'''
     conn = None
     cursor = None
@@ -379,7 +380,7 @@ def obtener_info_de_una_lista(_, id):
 
 @app.route('/votar', methods=['POST'])
 @token_required
-def registrar_voto(votante):
+def registrar_voto():
     '''Esta ruta es para poder registrar un voto a una lista elegida por el votante'''
     data = request.get_json()
     id_lista = data.get('numero_Lista')
@@ -434,8 +435,8 @@ def registrar_voto(votante):
         cursor.execute('''
             UPDATE Votante 
             SET Voto = TRUE, Token_Inicial = NULL
-            WHERE CI = %s
-        ''', (votante['CI'],))
+            WHERE Token_Inicial = %s
+        ''', (token,))
         conn.commit()
 
     except Exception as e:
