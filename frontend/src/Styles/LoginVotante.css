@@ -1,0 +1,86 @@
+#login-container {
+  padding: 2rem;
+  max-width: 400px;
+  margin: 4rem auto;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.login-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+.login-button {
+  width: 100%;
+  padding: 0.7rem;
+  background-color: #0066cc;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.login-button:hover {
+  background-color: #004d99;
+}
+
+.login-message {
+  margin-top: 1rem;
+  color: red;
+  text-align: center;
+}
+
+.user-data {
+  margin-top: 2rem;
+  background-color: #e6f2ff;
+  padding: 1rem;
+  border-radius: 8px;
+  color: #003366;
+}
+
+.extra-login-buttons {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.alt-login-button {
+  padding: 0.6rem;
+  background-color: #cccccc;
+  color: #222;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.alt-login-button:hover {
+  background-color: #aaaaaa;
+}
