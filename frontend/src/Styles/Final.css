@@ -1,0 +1,32 @@
+.final-container {
+  text-align: center;
+  padding: 2rem;
+  margin-top: 5rem;
+  font-family: Arial, sans-serif;
+}
+
+.final-container h2 {
+  color: #4caf50;
+  font-size: 2rem;
+}
+
+.final-container p {
+  font-size: 1.2rem;
+  margin: 1rem 0;
+}
+
+.volver-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.volver-button:hover {
+  background-color: #0056b3;
+}

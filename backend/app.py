@@ -1,3 +1,5 @@
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
 from flask import Flask, request, jsonify
 import secrets
 from mysql.connector import Error
@@ -5,6 +7,9 @@ from flask_cors import CORS
 import mysql.connector
 import os
 from dotenv import load_dotenv
+import csv
+from io import StringIO
+from flask import Response
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -138,6 +143,8 @@ def login_votante():
         if conn and conn.is_connected():
             conn.close()
 
+
+
 @app.route('/login/admin', methods=['POST'])
 def login_admin():
     data = request.get_json()
@@ -186,6 +193,139 @@ def login_admin():
         if conn and conn.is_connected():
             conn.close()
 
+#---------------------homeAdmin---------------------
+@app.route('/escrutinio/nacional', methods=['GET'])
+def escrutinio_nacional():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT 
+                e.ID AS Evento_ID,
+                e.Tipo AS Evento_Tipo,
+                l.Numero AS Numero_Lista, 
+                p.Nombre AS Partido,
+                COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            JOIN Evento_Electoral e ON l.ID_Evento_Electoral = e.ID
+            GROUP BY e.ID, e.Tipo, l.Numero, p.Nombre
+            ORDER BY e.ID, Total_Votos DESC
+        """)
+
+        resultados = cursor.fetchall()
+        return jsonify(resultados), 200
+
+    except Error as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Error al obtener el escrutinio nacional'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+
+@app.route('/auditoria/reporte', methods=['GET'])
+def reporte_auditoria():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT 
+                c.ID AS Circuito_ID,
+                l.Numero AS Numero_Lista,
+                p.Nombre AS Partido,
+                COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Circuito c ON v.ID_Circuito = c.ID
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            GROUP BY c.ID, l.Numero, p.Nombre
+            ORDER BY c.ID, Total_Votos DESC
+        """)
+
+        resultados = cursor.fetchall()
+
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Circuito_ID', 'Numero_Lista', 'Partido', 'Total_Votos'])
+        for row in resultados:
+            writer.writerow(row)
+
+        output.seek(0)
+        return Response(
+            output.getvalue(), 
+            mimetype='text/csv',
+            headers={"Content-Disposition": "attachment;filename=reporte_auditoria_elecciones_nacionales.csv"}
+        )
+
+    except Error as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Error al generar el reporte'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+@app.route('/resultados/oficiales', methods=['GET'])
+def resultados_oficiales():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # el ganador nacional
+        cursor.execute("""
+            SELECT p.Nombre AS Partido, COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            GROUP BY p.Nombre
+            ORDER BY Total_Votos DESC
+            LIMIT 1
+        """)
+        ganador_nacional = cursor.fetchone()
+
+        #resultados por departamento
+        cursor.execute("""
+            SELECT d.Nombre AS Departamento, p.Nombre AS Partido, COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            JOIN Departamento d ON l.ID_Departamento = d.ID
+            GROUP BY d.Nombre, p.Nombre
+            ORDER BY d.Nombre, Total_Votos DESC
+        """)
+        rows = cursor.fetchall()
+
+        resultados_por_departamento = {}
+        for row in rows:
+            depto = row['Departamento']
+            if depto not in resultados_por_departamento:
+                resultados_por_departamento[depto] = []
+            resultados_por_departamento[depto].append({
+                'Partido': row['Partido'],
+                'Total_Votos': row['Total_Votos']
+            })
+
+        return jsonify({
+            'ganador_nacional': ganador_nacional,
+            'por_departamento': resultados_por_departamento
+        })
+
+    except Error as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Error al obtener resultados oficiales'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+            
 @app.route('/login/presidente', methods=['POST'])
 def login_presidente():
     data = request.get_json()
@@ -233,6 +373,47 @@ def login_presidente():
         if conn and conn.is_connected():
             conn.close()
 
+def obtener_resumen_votos(circuito_id):
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("""
+            SELECT
+                l.Numero                              AS numero_lista,
+                COALESCE(p.Nombre, 'Sin partido')     AS partido,
+                COUNT(v.ID_Voto)                      AS cantidad,
+                v.ID_Circuito                         AS circuito_id 
+            FROM Voto v
+            LEFT JOIN Lista            l ON v.Numero_Lista = l.Numero
+            LEFT JOIN Partido_Politico p ON l.ID_Partido   = p.ID
+            WHERE v.ID_Circuito = %s
+            GROUP BY l.Numero, p.Nombre
+        """, (circuito_id,))
+        votos = cur.fetchall()
+
+        total_validos = sum(
+            v['cantidad'] for v in votos
+            if v['partido'].lower() not in ['anulados', 'en blanco']
+        )
+
+        resultado = []
+        for v in votos:
+            partido_lower = (v['partido'] or '').lower()
+            es_valido = partido_lower not in ['anulados', 'en blanco']
+            porcentaje = round(v['cantidad'] * 100 / total_validos, 2) if es_valido and total_validos > 0 else 0.0
+            resultado.append({
+                'numero_lista'     : v['numero_lista'],
+                'partido'          : v['partido'],
+                'cantidad'         : v['cantidad'],
+                'circuito_id'      : v['circuito_id'],
+                'porcentaje_validos': porcentaje
+            })
+
+        return {'total_validos': total_validos, 'votos': resultado}
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route('/presidente', methods=['POST'])
 def datos_presidente():
     data = request.get_json()
@@ -244,71 +425,69 @@ def datos_presidente():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    try:
-        # Obtener circuito del presidente
-        cursor.execute("""
-            SELECT c.ID AS circuito_id
-            FROM Empleado_Publico ep
-            JOIN Mesa m ON ep.ID_Mesa = m.ID
-            JOIN Circuito c ON m.ID_Circuito = c.ID
-            WHERE ep.CI = %s
+    # Obtener circuito del presidente
+    cursor.execute("""
+        SELECT c.ID AS circuito_id
+        FROM Empleado_Publico ep
+        JOIN Mesa m ON ep.ID_Mesa = m.ID
+        JOIN Circuito c ON m.ID_Circuito = c.ID
+        WHERE ep.CI = %s
         """, (ci,))
-        mesa_data = cursor.fetchone()
+    mesa_data = cursor.fetchone()
 
-        if not mesa_data:
-            return jsonify({'error': 'Presidente no asociado a ninguna mesa'}), 404
+    if not mesa_data:
+        return jsonify({'error': 'Presidente no asociado a ninguna mesa'}), 404
 
-        circuito_id = mesa_data['circuito_id']
+    circuito_id = mesa_data['circuito_id']
 
-        # Obtener votos por lista/partido, incluyendo partidos "En Blanco" y "Anulados"
-        cursor.execute("""
-            SELECT
-                l.Numero                              AS numero_lista,
-                COALESCE(p.Nombre, 'Sin partido')     AS partido,
-                COUNT(v.ID_Voto)                      AS cantidad
-            FROM Voto v
-            LEFT JOIN Lista l           ON v.Numero_Lista = l.Numero
-            LEFT JOIN Partido_Politico p ON l.ID_Partido   = p.ID
-            WHERE v.ID_Circuito = %s
-            GROUP BY l.Numero, p.Nombre
-            ORDER BY cantidad DESC
-        """, (circuito_id,))
-        votos = cursor.fetchall()
+    resumen = obtener_resumen_votos(circuito_id)
+    return jsonify(resumen), 200
 
-        # Calcular total de votos válidos (excluye partidos anulados o en blanco)
-        total_validos = sum(
-            v['cantidad'] for v in votos
-            if v['partido'].lower() not in ['anulados', 'enblanco']
-        )
+@app.route('/presidente/iniciar', methods=['POST'])
+def iniciar_votacion():
+    data = request.get_json()
+    circuito_id = data.get('circuito_id')
 
-        # Armar respuesta con porcentaje de votos válidos
-        resultado = []
-        for v in votos:
-            partido_lower = v['partido'].lower()
-            es_valido = partido_lower not in ['anulados', 'enblanco']
+    ahora = datetime.now(ZoneInfo("America/Montevideo")).time()
+    if not (time(8, 0) <= ahora <= time(19, 30)):
+        return jsonify({'error': 'Fuera del horario permitido (08:00‑19:30)'}), 400
 
-            porcentaje = round(v['cantidad'] * 100 / total_validos, 2) if es_valido and total_validos > 0 else 0.0
-
-            resultado.append({
-                'numero_lista'     : v['numero_lista'],
-                'partido'          : v['partido'],
-                'cantidad'         : v['cantidad'],
-                'porcentaje_validos': porcentaje
-            })
-
-        return jsonify({
-            'total_validos': total_validos,
-            'votos'        : resultado
-        })
-
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE Circuito SET abierto = TRUE WHERE ID = %s", (circuito_id,))
+        conn.commit()
+        return jsonify({'message': 'Votación iniciada'}), 200
     except Exception as e:
-        print("Error:", e)
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        conn.rollback()
+        print(e)
+        return jsonify({'error': 'Error en servidor'}), 500
     finally:
-        cursor.close()
+        cur.close()
         conn.close()
 
+@app.route('/presidente/finalizar', methods=['POST'])
+def finalizar_votacion():
+    circuito_id = request.get_json().get('circuito_id')
+    data = request.get_json()
+    circuito_id = data.get('circuito_id')
 
+    ahora = datetime.now(ZoneInfo("America/Montevideo")).time()
+    if ahora <= time(19, 30):
+        return jsonify({'error': 'Solo se puede finalizar después de las 19:30'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT abierto FROM Circuito WHERE ID = %s", (circuito_id,))
+    estado = cursor.fetchone()
+    if not estado or not estado['abierto']:
+        return jsonify({'error': 'La votación no estaba activa'}), 400
+
+    cursor.execute("UPDATE Circuito SET abierto = FALSE WHERE ID = %s", (circuito_id,))
+    conn.commit()
+    resumen = obtener_resumen_votos(circuito_id)  
+    return jsonify({'message': 'Votación finalizada', **resumen}), 200
 
 
 @app.route('/listas', methods=['GET'])
