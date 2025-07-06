@@ -5,6 +5,9 @@ from flask_cors import CORS
 import mysql.connector
 import os
 from dotenv import load_dotenv
+import csv
+from io import StringIO
+from flask import Response
 
 load_dotenv()
 
@@ -102,6 +105,138 @@ def login_votante():
     except Error as e:
         print(f"Database error: {e}")
         return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+#---------------------homeAdmin---------------------
+@app.route('/escrutinio/nacional', methods=['GET'])
+def escrutinio_nacional():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT 
+                e.ID AS Evento_ID,
+                e.Tipo AS Evento_Tipo,
+                l.Numero AS Numero_Lista, 
+                p.Nombre AS Partido,
+                COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            JOIN Evento_Electoral e ON l.ID_Evento_Electoral = e.ID
+            GROUP BY e.ID, e.Tipo, l.Numero, p.Nombre
+            ORDER BY e.ID, Total_Votos DESC
+        """)
+
+        resultados = cursor.fetchall()
+        return jsonify(resultados), 200
+
+    except Error as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Error al obtener el escrutinio nacional'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+
+@app.route('/auditoria/reporte', methods=['GET'])
+def reporte_auditoria():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT 
+                c.ID AS Circuito_ID,
+                l.Numero AS Numero_Lista,
+                p.Nombre AS Partido,
+                COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Circuito c ON v.ID_Circuito = c.ID
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            GROUP BY c.ID, l.Numero, p.Nombre
+            ORDER BY c.ID, Total_Votos DESC
+        """)
+
+        resultados = cursor.fetchall()
+
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Circuito_ID', 'Numero_Lista', 'Partido', 'Total_Votos'])
+        for row in resultados:
+            writer.writerow(row)
+
+        output.seek(0)
+        return Response(
+            output.getvalue(), 
+            mimetype='text/csv',
+            headers={"Content-Disposition": "attachment;filename=reporte_auditoria_elecciones_nacionales.csv"}
+        )
+
+    except Error as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Error al generar el reporte'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+@app.route('/resultados/oficiales', methods=['GET'])
+def resultados_oficiales():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # el ganador nacional
+        cursor.execute("""
+            SELECT p.Nombre AS Partido, COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            GROUP BY p.Nombre
+            ORDER BY Total_Votos DESC
+            LIMIT 1
+        """)
+        ganador_nacional = cursor.fetchone()
+
+        #resultados por departamento
+        cursor.execute("""
+            SELECT d.Nombre AS Departamento, p.Nombre AS Partido, COUNT(v.ID_Voto) AS Total_Votos
+            FROM Voto v
+            JOIN Lista l ON v.Numero_Lista = l.Numero
+            JOIN Partido_Politico p ON l.ID_Partido = p.ID
+            JOIN Departamento d ON l.ID_Departamento = d.ID
+            GROUP BY d.Nombre, p.Nombre
+            ORDER BY d.Nombre, Total_Votos DESC
+        """)
+        rows = cursor.fetchall()
+
+        resultados_por_departamento = {}
+        for row in rows:
+            depto = row['Departamento']
+            if depto not in resultados_por_departamento:
+                resultados_por_departamento[depto] = []
+            resultados_por_departamento[depto].append({
+                'Partido': row['Partido'],
+                'Total_Votos': row['Total_Votos']
+            })
+
+        return jsonify({
+            'ganador_nacional': ganador_nacional,
+            'por_departamento': resultados_por_departamento
+        })
+
+    except Error as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Error al obtener resultados oficiales'}), 500
     finally:
         if cursor:
             cursor.close()
