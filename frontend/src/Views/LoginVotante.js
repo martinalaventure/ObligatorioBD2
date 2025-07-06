@@ -31,6 +31,7 @@ const LoginVotante = () => {
         localStorage.setItem('token', data.token);
         localStorage.setItem('circuito', data.circuito);
         localStorage.setItem('serie', data.serie);
+        localStorage.setItem('observado', data.observado);
         setUserData(data.serie);
         navigate('/listas');
       } else {

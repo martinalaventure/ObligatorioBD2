@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom';
 
 const RutaProtegida = ({ children }) => {
   const token = localStorage.getItem('token');
-  console.log("Token en RutaProtegida:", token);
 
   if (!token) {
     return <Navigate to="/" replace />;

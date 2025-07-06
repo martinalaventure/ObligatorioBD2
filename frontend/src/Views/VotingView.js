@@ -64,6 +64,7 @@ const VotingView = () => {
           numero_Lista: lista.Numero,
           en_blanco: votoEnBlanco,
           anulado: votoAnulado,
+          observado: localStorage.getItem("observado"),
           id_circuito: parseInt(localStorage.getItem("circuito")),
           serie: localStorage.getItem("serie"),
         }),
@@ -75,9 +76,6 @@ const VotingView = () => {
             data.observado ? " (observado)" : ""
           }.`
         );
-        localStorage.removeItem("token");
-        localStorage.removeItem("serie");
-        localStorage.removeItem("circuito");
         navigate("/final");
       } else {
         const errorData = await response.json();

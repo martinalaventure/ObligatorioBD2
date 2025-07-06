@@ -1,27 +1,27 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link, Navigate } from "react-router-dom";
+import "../Styles/HomeAdmin.css";
+import LogoutButton from "../Components/LogoutButton";
 
 const HomeAdmin = () => {
   return (
-    <div style={{ padding: '2rem' }}>
-      <h2>Home Administrador</h2>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
-
-        <Link to="/resultados/oficiales">
-          <button>Ver Resultados Oficiales</button>
+    <div className="home-admin-container">
+      <LogoutButton />
+      <div className="home-admin-buttons">
+        <Link to="/resultados/oficiales" className="admin-btn">
+          Ver Resultados Oficiales
         </Link>
-        
-        <Link to="/escrutinio/nacional">
-          <button>Ver Escrutinio Nacional</button>
+
+        <Link to="/escrutinio/nacional" className="admin-btn">
+          Ver Escrutinio Nacional
         </Link>
 
         <a
-            href="http://localhost:5000/auditoria/reporte"
-            className="audit-btn"
-            download
-            >
-            Descargar Auditoría
+          href="http://localhost:5000/auditoria/reporte"
+          className="admin-btn"
+          download
+        >
+          Descargar Auditoría
         </a>
       </div>
     </div>

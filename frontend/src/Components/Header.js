@@ -11,6 +11,7 @@ const Header = () => {
     if (path === "/presidente") return "Página Principal";
     if (path === "/listas") return "Elegir Opción A Votar";
     if (path.startsWith("/listas/")) return "Votar";
+    if (path === "/home/admin") return "Home Administrador";
     if (path === "/login/votante") return null;
   };
 

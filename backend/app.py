@@ -105,8 +105,21 @@ def login_votante():
         #Acá estaríamos validando que la serie coincida con la serie del votante
         serie_votante = votante['CC'][:3]
 
-        cursor.execute("SELECT Serie FROM Circuito WHERE ID = %s", (data['circuito_id'],))
+        cursor.execute("SELECT Serie, Desde, Hasta FROM Circuito WHERE ID = %s", (data['circuito_id'],))
         circuito = cursor.fetchone()
+
+        
+        serie_circuito = circuito['Serie']
+        
+        desde = circuito['Desde']
+        hasta = circuito['Hasta']
+
+        try:
+            numero_cc = int(votante['CC'][3:])
+        except ValueError:
+            return jsonify({'error': 'Formato inválido de la serie del votante'}), 400
+
+        observado = 1 if (serie_votante != serie_circuito) or (numero_cc < desde or numero_cc > hasta) else 0
 
         if not circuito:
             return jsonify({'error': 'Circuito no encontrado'}), 404
@@ -131,6 +144,7 @@ def login_votante():
             'message': 'Autenticación exitosa',
             'serie': serie_votante,
             'circuito': data['circuito_id'],
+            'observado': observado,
             'token': token,
         }), 200
 
@@ -325,7 +339,7 @@ def resultados_oficiales():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
-            
+
 @app.route('/login/presidente', methods=['POST'])
 def login_presidente():
     data = request.get_json()
@@ -473,7 +487,7 @@ def finalizar_votacion():
     circuito_id = data.get('circuito_id')
 
     ahora = datetime.now(ZoneInfo("America/Montevideo")).time()
-    if ahora <= time(19, 30):
+    if ahora <= time(14, 00):
         return jsonify({'error': 'Solo se puede finalizar después de las 19:30'}), 400
 
     conn = get_db_connection()
@@ -566,6 +580,7 @@ def registrar_voto():
     en_blanco = data.get('en_blanco', False)
     anulado = data.get('anulado', False)
     id_circuito = data.get('id_circuito')
+    observado = data.get('observado', False)
     serie_votante = data.get('serie')
 
     if not (en_blanco or anulado or id_lista):
@@ -593,10 +608,7 @@ def registrar_voto():
         if not circuito:
             return jsonify({'error': 'Circuito no encontrado'}), 404
         
-        serie_circuito = circuito['Serie']
-        print("esta es serie_circuito" + serie_circuito)
-
-        observado = (serie_votante != serie_circuito)
+        
 
         #Insertar el voto en la tabla
         cursor.execute('''

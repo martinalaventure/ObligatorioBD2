@@ -7,7 +7,10 @@ const Final = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
+    localStorage.removeItem("serie");
+    localStorage.removeItem("circuito");
+    localStorage.removeItem("observado");
   }, []);
 
   const handleVolver = () => {
