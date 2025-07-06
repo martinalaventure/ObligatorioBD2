@@ -35,3 +35,40 @@
   text-decoration: none;
   cursor: pointer;
 }
+
+
+
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.modal-buttons button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.modal-buttons .confirm {
+  background-color: #008000;
+  color: white;
+}
+
+.modal-buttons .confirm:hover {
+  background-color: #006400;
+}
+
+.modal-buttons .cancel {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.modal-buttons .cancel:hover {
+  background-color: #c0392b;
+}
+

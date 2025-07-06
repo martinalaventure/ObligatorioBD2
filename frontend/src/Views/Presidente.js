@@ -36,7 +36,6 @@ const HomePresidente = () => {
             return;
         }
 
-        console.log("Iniciando votación con circuito ID:", circuitoId);
 
         fetch('http://localhost:5000/presidente/iniciar', {
             method: 'POST',
@@ -45,7 +44,6 @@ const HomePresidente = () => {
         })
             .then(res => res.json())
             .then(data => {
-                console.log("Respuesta del backend:", data);
                 setMensaje(data.message || data.error || "Sin mensaje del servidor");
             })
             .catch(err => {

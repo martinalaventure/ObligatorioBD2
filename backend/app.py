@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import csv
 from io import StringIO
 from flask import Response
+from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
@@ -31,31 +32,52 @@ def get_db_connection():
         print(f"Error connecting to database: {e}")
         return None
 
-@app.route('/')
-def home():
-    return "Hola desde Flask con MySQL conectado!"
+def token_required(f):
+    '''Esta función provee seguridad para la página, chequea el token del votante para autorizarlo a que pueda votar'''
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token_header = request.headers.get('Authorization')
+        if not token_header or not token_header.startswith('Bearer '):
+            return jsonify({'error': 'Token no proporcionado'}), 401
+        
+        token = token_header.split(' ')[1]
 
-@app.route('/dbcheck')
-def dbcheck():
-    try:
-        conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            port=os.getenv("DB_PORT", 3306)
-        )
-        return "Conexión a MySQL exitosa!"
-    except Exception as e:
-        return f"Error de conexión: {str(e)}"
+        conn = None
+        cursor = None
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'error': 'Error de conexión'}), 500
+            cursor = conn.cursor(dictionary=True)
+            
+            cursor.execute("""
+                SELECT * FROM Votante WHERE Token_Inicial = %s AND Habilitado = TRUE AND Voto = FALSE
+            """, (token,))
+            votante = cursor.fetchone()
+
+            if not votante:
+                return jsonify({'error': 'Token inválido o expirado'}), 403
+            
+            
+            return f( *args, **kwargs)
+        
+        except Error as e:
+            print(f"Token check DB error: {e}")
+            return jsonify({'error': 'Error del servidor'}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn and conn.is_connected():
+                conn.close()
+    return decorated 
     
 @app.route('/login/votante', methods=['POST'])
 def login_votante():
     data = request.get_json()
 
     # Validación básica
-    if not data or not data.get('serie') or not data.get('cc') or not data.get('circuito_id'):
-        return jsonify({'error': 'Serie, Credencial y Circuito son requeridos'}), 400
+    if not data or not data.get('cc') or not data.get('circuito_id'):
+        return jsonify({'error': 'Credencial y Circuito son requeridos'}), 400
 
     conn = None
     cursor = None
@@ -67,18 +89,40 @@ def login_votante():
         cursor = conn.cursor(dictionary=True)
 
         # Buscar al votante
+        #JOIN Circuito ci ON ci.Serie = %s AND ci.ID = %s eliminada para que no tenga que restringir la votación 
         cursor.execute("""
             SELECT c.CI, c.CC, c.Nombre, c.Apellido, v.Habilitado, v.Voto
             FROM Ciudadano c
             LEFT JOIN Votante v ON c.CI = v.CI
-            JOIN Circuito ci ON ci.Serie = %s AND ci.ID = %s
             WHERE c.CC = %s
-        """, (data['serie'], data['circuito_id'], data['cc']))
+        """, (data['cc'],))
 
         votante = cursor.fetchone()
 
         if not votante:
             return jsonify({'error': 'Datos incorrectos'}), 401
+
+        #Acá estaríamos validando que la serie coincida con la serie del votante
+        serie_votante = votante['CC'][:3]
+
+        cursor.execute("SELECT Serie, Desde, Hasta FROM Circuito WHERE ID = %s", (data['circuito_id'],))
+        circuito = cursor.fetchone()
+
+        
+        serie_circuito = circuito['Serie']
+        
+        desde = circuito['Desde']
+        hasta = circuito['Hasta']
+
+        try:
+            numero_cc = int(votante['CC'][3:])
+        except ValueError:
+            return jsonify({'error': 'Formato inválido de la serie del votante'}), 400
+
+        observado = 1 if (serie_votante != serie_circuito) or (numero_cc < desde or numero_cc > hasta) else 0
+
+        if not circuito:
+            return jsonify({'error': 'Circuito no encontrado'}), 404
 
         if not votante.get('Habilitado', False):
             return jsonify({'error': 'No estás habilitado para votar'}), 403
@@ -98,11 +142,10 @@ def login_votante():
 
         return jsonify({
             'message': 'Autenticación exitosa',
+            'serie': serie_votante,
+            'circuito': data['circuito_id'],
+            'observado': observado,
             'token': token,
-            'user_data': {
-                'ci': votante['CI'],
-                'nombre': f"{votante['Nombre']} {votante['Apellido']}"
-            }
         }), 200
 
     except Error as e:
@@ -113,6 +156,57 @@ def login_votante():
             cursor.close()
         if conn and conn.is_connected():
             conn.close()
+
+
+
+@app.route('/login/admin', methods=['POST'])
+def login_admin():
+    data = request.get_json()
+
+    if not data or not data.get('usuario') or not data.get('contrasena'):
+        return jsonify({'error': 'Usuario y contraseña son requeridos'}), 400
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+
+        cursor = conn.cursor(dictionary=True)
+
+        # Buscar admin por usuario
+        cursor.execute("""
+            SELECT CI, Usuario, Password_Hash
+            FROM Admin
+            WHERE Usuario = %s
+        """, (data['usuario'],))
+
+        admin = cursor.fetchone()
+
+        # Verificar credenciales
+        if not admin or not check_password_hash(admin['Password_Hash'], data['contrasena']):
+            return jsonify({'error': 'Usuario o contraseña incorrectos'}), 401
+
+        # Generar token 
+        token = secrets.token_urlsafe(32)
+
+        return jsonify({
+            'message': 'Autenticación exitosa',
+            'token': token,
+            'user_data': {
+                'ci': admin['CI'],            }
+        }), 200
+
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
 #---------------------homeAdmin---------------------
 @app.route('/escrutinio/nacional', methods=['GET'])
 def escrutinio_nacional():
@@ -240,54 +334,6 @@ def resultados_oficiales():
     except Error as e:
         print(f"Error: {e}")
         return jsonify({'error': 'Error al obtener resultados oficiales'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
-            conn.close()
-
-@app.route('/login/admin', methods=['POST'])
-def login_admin():
-    data = request.get_json()
-
-    if not data or not data.get('usuario') or not data.get('contrasena'):
-        return jsonify({'error': 'Usuario y contraseña son requeridos'}), 400
-
-    conn = None
-    cursor = None
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
-
-        cursor = conn.cursor(dictionary=True)
-
-        # Buscar admin por usuario
-        cursor.execute("""
-            SELECT CI, Usuario, Password_Hash
-            FROM Admin
-            WHERE Usuario = %s
-        """, (data['usuario'],))
-
-        admin = cursor.fetchone()
-
-        # Verificar credenciales
-        if not admin or not check_password_hash(admin['Password_Hash'], data['contrasena']):
-            return jsonify({'error': 'Usuario o contraseña incorrectos'}), 401
-
-        # Generar token 
-        token = secrets.token_urlsafe(32)
-
-        return jsonify({
-            'message': 'Autenticación exitosa',
-            'token': token,
-            'user_data': {
-                'ci': admin['CI'],            }
-        }), 200
-
-    except Error as e:
-        print(f"Database error: {e}")
-        return jsonify({'error': 'Error en el servidor'}), 500
     finally:
         if cursor:
             cursor.close()
@@ -441,7 +487,7 @@ def finalizar_votacion():
     circuito_id = data.get('circuito_id')
 
     ahora = datetime.now(ZoneInfo("America/Montevideo")).time()
-    if ahora <= time(19, 30):
+    if ahora <= time(14, 00):
         return jsonify({'error': 'Solo se puede finalizar después de las 19:30'}), 400
 
     conn = get_db_connection()
@@ -456,6 +502,149 @@ def finalizar_votacion():
     conn.commit()
     resumen = obtener_resumen_votos(circuito_id)  
     return jsonify({'message': 'Votación finalizada', **resumen}), 200
+
+
+@app.route('/listas', methods=['GET'])
+@token_required
+def obtener_listas_para_votar():
+    '''Esta ruta es donde el votante verá desplegada la vista con las diferentes listas para votar.'''
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+        cursor = conn.cursor(dictionary=True)
+        #Obtener todas las listas
+        cursor.execute("""
+            SELECT Lista.Numero, Partido_Politico.Nombre AS Nombre_Partido 
+                       FROM Lista 
+                       JOIN Partido_Politico ON Lista.ID_Partido = Partido_Politico.ID
+                       WHERE Lista.Numero NOT IN (1, 2)
+        """)
+        listas = cursor.fetchall()
+        
+        return jsonify({'listas': listas}), 200
+
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+@app.route('/listas/<id>', methods = ['GET'])
+@token_required
+def obtener_info_de_una_lista(id):
+    '''Esta ruta es para obtener la vista de una lista seleccionada'''
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT Lista.Numero, Departamento.Nombre AS Nombre_Departamento, Partido_Politico.Nombre AS Nombre_Partido, Partido_Politico.Dir_Sede, Evento_Electoral.Tipo
+            FROM Lista 
+                       LEFT JOIN Departamento ON Lista.ID_Departamento = Departamento.ID
+                        JOIN Partido_Politico ON Lista.ID_Partido = Partido_Politico.ID
+                       LEFT JOIN Evento_Electoral ON Lista.ID_Evento_Electoral = Evento_Electoral.ID
+            WHERE Lista.Numero = %s
+        """,(id,))
+
+        lista = cursor.fetchone()
+
+        if not lista:
+            return jsonify({'error': 'Lista no encontrada'}), 404
+
+        return jsonify({'lista': lista}), 200
+
+    except Error as e:
+        print(f"Database error: {e}")
+        return jsonify({'error': 'Error en el servidor'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+
+@app.route('/votar', methods=['POST'])
+@token_required
+def registrar_voto():
+    '''Esta ruta es para poder registrar un voto a una lista elegida por el votante'''
+    data = request.get_json()
+    id_lista = data.get('numero_Lista')
+    en_blanco = data.get('en_blanco', False)
+    anulado = data.get('anulado', False)
+    id_circuito = data.get('id_circuito')
+    observado = data.get('observado', False)
+    serie_votante = data.get('serie')
+
+    if not (en_blanco or anulado or id_lista):
+        return jsonify({'error': 'Debe votar por una lista, o votar en blanco o anulado'}), 400
+    if not id_circuito or not serie_votante:
+        return jsonify({'error': 'Faltan datos de circuito o serie del votante'}), 400
+   
+    auth_header = request.headers.get('Authorization')
+    token = auth_header.split(' ')[1]
+
+    conn = None
+    cursor = None
+
+    #Buscar la serie del circuito
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión con la base de datos'}), 500
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('''
+             SELECT Serie FROM Circuito WHERE ID = %s
+        ''', (id_circuito,))
+        circuito = cursor.fetchone()
+
+        if not circuito:
+            return jsonify({'error': 'Circuito no encontrado'}), 404
+        
+        
+
+        #Insertar el voto en la tabla
+        cursor.execute('''
+            INSERT INTO Voto (En_Blanco, Anulado, Observado, Fecha_Hora, Numero_Lista, ID_Circuito)
+                       VALUES (%s, %s, %s, NOW(), %s, %s)
+        ''',(
+            en_blanco,
+            anulado,
+            observado,
+            id_lista,
+            id_circuito
+        ))
+        conn.commit()
+
+        cursor.execute('''
+            UPDATE Votante 
+            SET Voto = TRUE, Token_Inicial = NULL
+            WHERE Token_Inicial = %s
+        ''', (token,))
+        conn.commit()
+
+    except Exception as e:
+        print('Error al registrar voto:', e)
+        return jsonify({'error': 'Error al registrar voto'}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+    return jsonify({
+        'mensaje': 'Voto registrado correctamente',
+        'observado': observado
+    }), 200
+
+
 
 
 if __name__ == "__main__":

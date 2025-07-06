@@ -23,7 +23,7 @@ const LoginPresidente = () => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('presidenteToken', data.token);
+        localStorage.setItem('token', data.token);
         localStorage.setItem('presidente_ci', data.ci);
         navigate('/presidente');
       } else {
